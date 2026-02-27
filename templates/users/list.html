@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Users - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-users"></i> Users Management</h1>
+    <p>Manage system users</p>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>All Users</h2>
+        <a href="{% url 'user_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add User
+        </a>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.username }}</td>
+                <td>{{ user.email }}</td>
+                <td>{{ user.get_full_name|default:"-" }}</td>
+                <td>
+                    {% if user.user_role.role %}
+                        <span class="badge badge-info">{{ user.user_role.role.name }}</span>
+                    {% else %}
+                        <span class="badge badge-warning">No Role</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user.is_active %}
+                        <span class="badge badge-success">Active</span>
+                    {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{% url 'user_edit' user.id %}" class="action-btn action-btn-edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form method="POST" action="{% url 'user_delete' user.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="action-btn action-btn-delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">No users found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

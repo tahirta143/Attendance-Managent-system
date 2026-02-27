@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Mark Attendance - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-clipboard-check"></i> Mark Attendance</h1>
+</div>
+
+<div class="form-container">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label for="employee_id">Select Employee *</label>
+                <select id="employee_id" name="employee_id" required>
+                    <option value="">Choose an employee...</option>
+                    {% for employee in employees %}
+                        <option value="{{ employee.id }}">
+                            {{ employee.employee_id }} - {{ employee.first_name }} {{ employee.last_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="date">Date *</label>
+                <input type="date" id="date" name="date" value="{{ today|date:'Y-m-d' }}" required>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="status">Status *</label>
+                <select id="status" name="status" required>
+                    <option value="">Select Status</option>
+                    <option value="present">Present</option>
+                    <option value="absent">Absent</option>
+                    <option value="leave">Leave</option>
+                    <option value="late">Late</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="check_in">Check In Time</label>
+                <input type="time" id="check_in" name="check_in">
+            </div>
+            <div class="form-group">
+                <label for="check_out">Check Out Time</label>
+                <input type="time" id="check_out" name="check_out">
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="remarks">Remarks</label>
+            <textarea id="remarks" name="remarks" rows="3"></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Mark Attendance
+            </button>
+            <a href="{% url 'attendance_list' %}" class="btn btn-danger">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

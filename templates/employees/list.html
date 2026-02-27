@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Employees - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-id-card"></i> Employees Management</h1>
+    <p>Manage employee records</p>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>All Employees</h2>
+        <div style="display: flex; gap: 10px;">
+            <form method="GET" class="search-box">
+                <input type="text" name="search" placeholder="Search employees..." value="{{ search }}">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </form>
+            <a href="{% url 'employee_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Employee
+            </a>
+        </div>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Designation</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td><strong>{{ employee.employee_id }}</strong></td>
+                <td>{{ employee.first_name }} {{ employee.last_name }}</td>
+                <td>{{ employee.email }}</td>
+                <td>{{ employee.department }}</td>
+                <td>{{ employee.designation }}</td>
+                <td>
+                    {% if employee.is_active %}
+                        <span class="badge badge-success">Active</span>
+                    {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{% url 'employee_edit' employee.id %}" class="action-btn action-btn-edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form method="POST" action="{% url 'employee_delete' employee.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="action-btn action-btn-delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align: center;">No employees found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

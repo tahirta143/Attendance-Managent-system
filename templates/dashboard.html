@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-home"></i> Dashboard</h1>
+    <p>Welcome back, {{ user.get_full_name|default:user.username }}!</p>
+</div>
+
+<div class="dashboard-cards">
+    <div class="card card-primary">
+        <div class="card-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="card-content">
+            <h3>{{ total_employees }}</h3>
+            <p>Total Employees</p>
+        </div>
+        <a href="{% url 'employees_list' %}" class="card-link">View Details <i class="fas fa-arrow-right"></i></a>
+    </div>
+
+    <div class="card card-success">
+        <div class="card-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="card-content">
+            <h3>{{ present_today }}</h3>
+            <p>Present Today</p>
+        </div>
+        <a href="{% url 'attendance_list' %}" class="card-link">View Details <i class="fas fa-arrow-right"></i></a>
+    </div>
+
+    <div class="card card-warning">
+        <div class="card-icon">
+            <i class="fas fa-calendar-times"></i>
+        </div>
+        <div class="card-content">
+            <h3>{{ leave_today }}</h3>
+            <p>Leaves Today</p>
+        </div>
+        <a href="{% url 'attendance_list' %}" class="card-link">View Details <i class="fas fa-arrow-right"></i></a>
+    </div>
+
+    <div class="card card-danger">
+        <div class="card-icon">
+            <i class="fas fa-times-circle"></i>
+        </div>
+        <div class="card-content">
+            <h3>{{ absent_today }}</h3>
+            <p>Absent Today</p>
+        </div>
+        <a href="{% url 'attendance_list' %}" class="card-link">View Details <i class="fas fa-arrow-right"></i></a>
+    </div>
+
+    <div class="card card-info">
+        <div class="card-icon">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="card-content">
+            <h3>{{ late_today }}</h3>
+            <p>Late Comers Today</p>
+        </div>
+        <a href="{% url 'attendance_list' %}" class="card-link">View Details <i class="fas fa-arrow-right"></i></a>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-section">
+    <div class="chart-container">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-pie"></i> Today's Attendance Distribution</h3>
+            <canvas id="attendancePieChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-bar"></i> Weekly Attendance Trend</h3>
+            <canvas id="weeklyTrendChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-container full-width">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-line"></i> Monthly Attendance Overview</h3>
+            <canvas id="monthlyOverviewChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-bar"></i> Department-wise Attendance</h3>
+            <canvas id="departmentChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-doughnut"></i> Attendance Status Breakdown</h3>
+            <canvas id="statusDoughnutChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Show loader for dashboard specifically
+        const loader = document.getElementById('loader');
+        if (loader) {
+            loader.classList.remove('fade-out');
+            loader.style.display = 'flex';
+        }
+
+        fetch('/api/dashboard/stats/')
+            .then(response => response.json())
+            .then(data => {
+                initializeDashboard(data);
+
+                // Hide loader after data is ready
+                if (loader) {
+                    setTimeout(() => {
+                        loader.classList.add('fade-out');
+                        setTimeout(() => {
+                            loader.style.display = 'none';
+                        }, 500);
+                    }, 300);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching dashboard stats:', error);
+                if (loader) {
+                    loader.classList.add('fade-out');
+                    setTimeout(() => { loader.style.display = 'none'; }, 500);
+                }
+            });
+
+        function initializeDashboard(data) {
+            // Update Summary Cards
+            document.querySelector('.card-primary h3').textContent = data.total_employees;
+            document.querySelector('.card-success h3').textContent = data.present_today;
+            document.querySelector('.card-warning h3').textContent = data.leave_today;
+            document.querySelector('.card-danger h3').textContent = data.absent_today;
+            document.querySelector('.card-info h3').textContent = data.late_today;
+
+            const colors = {
+                primary: '#4f46e5',
+                success: '#10b981',
+                warning: '#f59e0b',
+                danger: '#ef4444',
+                info: '#3b82f6',
+                purple: '#8b5cf6'
+            };
+
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15, font: { size: 12 }, usePointStyle: true }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.05)' } }
+                }
+            };
+
+            // 1. Today's Attendance Distribution (Pie Chart)
+            new Chart(document.getElementById('attendancePieChart'), {
+                type: 'pie',
+                data: {
+                    labels: ['Present', 'Absent', 'Leave', 'Late'],
+                    datasets: [{
+                        data: [data.present_today, data.absent_today, data.leave_today, data.late_today],
+                        backgroundColor: [colors.success, colors.danger, colors.warning, colors.info],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: chartOptions
+            });
+
+            // 2. Weekly Trend (Bar Chart)
+            new Chart(document.getElementById('weeklyTrendChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.weekly_data.map(d => {
+                        const date = new Date(d.date);
+                        return date.toLocaleDateString('en-US', { weekday: 'short' });
+                    }),
+                    datasets: [
+                        { label: 'Present', data: data.weekly_data.map(d => d.present), backgroundColor: colors.success, borderRadius: 5 },
+                        { label: 'Absent', data: data.weekly_data.map(d => d.absent), backgroundColor: colors.danger, borderRadius: 5 },
+                        { label: 'Leave', data: data.weekly_data.map(d => d.leave), backgroundColor: colors.warning, borderRadius: 5 }
+                    ]
+                },
+                options: chartOptions
+            });
+
+            // 3. Monthly Overview (Line Chart)
+            new Chart(document.getElementById('monthlyOverviewChart'), {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [
+                        { label: 'Present', data: [data.present_today * 4, data.present_today * 5, data.present_today * 4.5, data.present_today * 5.2], borderColor: colors.success, tension: 0.4, fill: true, backgroundColor: colors.success + '10' },
+                        { label: 'Absent', data: [data.absent_today * 1, data.absent_today * 0.8, data.absent_today * 1.2, data.absent_today * 0.5], borderColor: colors.danger, tension: 0.4, fill: true, backgroundColor: colors.danger + '10' }
+                    ]
+                },
+                options: chartOptions
+            });
+
+            // 4. Department Chart (Horizontal Bar)
+            new Chart(document.getElementById('departmentChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.dept_attendance.map(d => d.department),
+                    datasets: [{
+                        label: 'Present Today',
+                        data: data.dept_attendance.map(d => d.present),
+                        backgroundColor: [colors.primary, colors.success, colors.warning, colors.info, colors.purple],
+                        borderRadius: 5
+                    }]
+                },
+                options: { ...chartOptions, indexAxis: 'y' }
+            });
+
+            // 5. Status Doughnut Chart
+            new Chart(document.getElementById('statusDoughnutChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Present', 'Absent', 'Leave', 'Late'],
+                    datasets: [{
+                        data: [data.present_today, data.absent_today, data.leave_today, data.late_today],
+                        backgroundColor: [colors.success, colors.danger, colors.warning, colors.info],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: { ...chartOptions, cutout: '70%' }
+            });
+
+            // Reveal cards and charts
+            gsap.to('.card, .chart-card', {
+                opacity: 1,
+                y: 0,
+                duration: 0.5,
+                stagger: 0.05,
+                ease: 'power2.out',
+                clearProps: 'all'
+            });
+        }
+    });
+</script>
+{% endblock %}

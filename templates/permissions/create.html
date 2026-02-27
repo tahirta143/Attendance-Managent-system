@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Permission - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-key"></i> Create New Permission</h1>
+</div>
+
+<div class="form-container">
+    <form method="POST">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Permission Name *</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="codename">Codename *</label>
+                <input type="text" id="codename" name="codename" required>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4"></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Create Permission
+            </button>
+            <a href="{% url 'permissions_list' %}" class="btn btn-danger">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

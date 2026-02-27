@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block title %}User Roles - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-user-shield"></i> Assign Roles to Users</h1>
+    <p>Manage user role assignments</p>
+</div>
+
+<div class="form-container" style="margin-bottom: 30px;">
+    <h2 style="margin-bottom: 20px;">Assign Role</h2>
+    <form method="POST" action="{% url 'assign_role' %}">
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="form-group">
+                <label for="user_id">Select User *</label>
+                <select id="user_id" name="user_id" required>
+                    <option value="">Choose a user...</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.username }} - {{ user.email }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="role_id">Select Role *</label>
+                <select id="role_id" name="role_id" required>
+                    <option value="">Choose a role...</option>
+                    {% for role in roles %}
+                        <option value="{{ role.id }}">{{ role.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i> Assign Role
+        </button>
+    </form>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>Current Assignments</h2>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Assigned Role</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user_role in user_roles %}
+            <tr>
+                <td>{{ user_role.user.username }}</td>
+                <td>{{ user_role.user.email }}</td>
+                <td>
+                    {% if user_role.role %}
+                        <span class="badge badge-info">{{ user_role.role.name }}</span>
+                    {% else %}
+                        <span class="badge badge-warning">No Role</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if user_role.user.is_active %}
+                        <span class="badge badge-success">Active</span>
+                    {% else %}
+                        <span class="badge badge-danger">Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">No role assignments found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

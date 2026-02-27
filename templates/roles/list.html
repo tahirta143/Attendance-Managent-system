@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Roles - Attendance System{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-user-tag"></i> Roles Management</h1>
+    <p>Manage user roles</p>
+</div>
+
+<div class="table-container">
+    <div class="table-header">
+        <h2>All Roles</h2>
+        <a href="{% url 'role_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Role
+        </a>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Role Name</th>
+                <th>Description</th>
+                <th>Created At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for role in roles %}
+            <tr>
+                <td><strong>{{ role.name }}</strong></td>
+                <td>{{ role.description|default:"-" }}</td>
+                <td>{{ role.created_at|date:"M d, Y" }}</td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{% url 'role_edit' role.id %}" class="action-btn action-btn-edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <form method="POST" action="{% url 'role_delete' role.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="action-btn action-btn-delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" style="text-align: center;">No roles found</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
