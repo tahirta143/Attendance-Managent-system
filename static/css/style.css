@@ -771,6 +771,7 @@ tr:hover {
         max-height: 250px;
     }
 }
+
 /* Premium Loader Styles */
 .loader-wrapper {
     position: fixed;
@@ -789,6 +790,7 @@ tr:hover {
 .loader-wrapper.fade-out {
     opacity: 0;
     visibility: hidden;
+    pointer-events: none;
 }
 
 .loader-content {
@@ -825,11 +827,25 @@ tr:hover {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes pulse {
-    0%, 100% { opacity: 0.5; transform: translateX(-50%) scale(0.9); }
-    50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+
+    0%,
+    100% {
+        opacity: 0.5;
+        transform: translateX(-50%) scale(0.9);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.1);
+    }
 }

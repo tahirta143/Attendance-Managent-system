@@ -1,15 +1,24 @@
 // Loader handling
-window.addEventListener('load', () => {
+function hideLoader() {
     const loader = document.getElementById('loader');
-    if (loader) {
+    if (loader && !loader.classList.contains('fade-out')) {
         setTimeout(() => {
             loader.classList.add('fade-out');
             setTimeout(() => {
                 loader.style.display = 'none';
             }, 500);
-        }, 300); // Small delay for polish
+        }, 300);
     }
-});
+}
+
+if (document.readyState === 'complete') {
+    hideLoader();
+} else {
+    window.addEventListener('load', hideLoader);
+}
+
+// Fallback: Force hide loader after 3 seconds if it's still stuck
+setTimeout(hideLoader, 3000);
 
 // Sidebar Toggle
 const sidebar = document.getElementById('sidebar');

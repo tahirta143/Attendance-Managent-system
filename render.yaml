@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: attendance-system
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn attendance_system.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.7
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: "*"
