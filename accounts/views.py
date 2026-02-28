@@ -31,18 +31,61 @@ def dashboard(request):
     from django.db.models import Count, Q
     
     today = timezone.now().date()
-    total_employees = Employee.objects.filter(is_active=True).count()
     
-    # Today's attendance
-    present_today = Attendance.objects.filter(date=today, status='present').count()
-    leave_today = Attendance.objects.filter(date=today, status='leave').count()
-    late_today = Attendance.objects.filter(date=today, status='late').count()
-    absent_today = Attendance.objects.filter(date=today, status='absent').count()
+    # Check if user is employee
+    is_employee = hasattr(request.user, 'user_role') and request.user.user_role.role and request.user.user_role.role.name.lower() == 'employee'
     
-    # Weekly data (last 7 days)
-    weekly_data = []
-    for i in range(6, -1, -1):
-        date = today - timedelta(days=i)
+    if is_employee:
+        total_employees = 1
+        
+        # Today's attendance
+        present_today = Attendance.objects.filter(date=today, status='present', employee__email=request.user.email).count()
+        leave_today = Attendance.objects.filter(date=today, status='leave', employee__email=request.user.email).count()
+        late_today = Attendance.objects.filter(date=today, status='late', employee__email=request.user.email).count()
+        absent_today = Attendance.objects.filter(date=today, status='absent', employee__email=request.user.email).count()
+        
+        # Weekly data
+        weekly_data = []
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            day_data = {
+                'date': date,
+                'present': Attendance.objects.filter(date=date, status='present', employee__email=request.user.email).count(),
+                'absent': Attendance.objects.filter(date=date, status='absent', employee__email=request.user.email).count(),
+                'leave': Attendance.objects.filter(date=date, status='leave', employee__email=request.user.email).count(),
+                'late': Attendance.objects.filter(date=date, status='late', employee__email=request.user.email).count(),
+            }
+            weekly_data.append(day_data)
+            
+        # Department-wise
+        employee = Employee.objects.filter(email=request.user.email).first()
+        dept_attendance = []
+        if employee:
+            dept_attendance = [{
+                'department': employee.department,
+                'present': present_today
+            }]
+    else:
+        total_employees = Employee.objects.filter(is_active=True).count()
+        
+        # Today's attendance
+        present_today = Attendance.objects.filter(date=today, status='present').count()
+        leave_today = Attendance.objects.filter(date=today, status='leave').count()
+        late_today = Attendance.objects.filter(date=today, status='late').count()
+        absent_today = Attendance.objects.filter(date=today, status='absent').count()
+        
+        # Weekly data (last 7 days)
+        weekly_data = []
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            day_data = {
+                'date': date,
+                'present': Attendance.objects.filter(date=date, status='present').count(),
+                'absent': Attendance.objects.filter(date=date, status='absent').count(),
+                'leave': Attendance.objects.filter(date=date, status='leave').count(),
+                'late': Attendance.objects.filter(date=date, status='late').count(),
+            }
+            weekly_data.append(day_data)
         day_data = {
             'date': date,
             'present': Attendance.objects.filter(date=date, status='present').count(),
@@ -52,20 +95,21 @@ def dashboard(request):
         }
         weekly_data.append(day_data)
     
-    # Department-wise attendance for today
-    departments = Employee.objects.values('department').distinct()
-    dept_attendance = []
-    for dept in departments:
-        dept_name = dept['department']
-        present_count = Attendance.objects.filter(
-            date=today,
-            status='present',
-            employee__department=dept_name
-        ).count()
-        dept_attendance.append({
-            'department': dept_name,
-            'present': present_count
-        })
+    if not is_employee:
+        dept_attendance = []
+        # Department-wise attendance for today
+        departments = Employee.objects.values('department').distinct()
+        for dept in departments:
+            dept_name = dept['department']
+            present_count = Attendance.objects.filter(
+                date=today,
+                status='present',
+                employee__department=dept_name
+            ).count()
+            dept_attendance.append({
+                'department': dept_name,
+                'present': present_count
+            })
     
     context = {
         'total_employees': total_employees,
@@ -95,13 +139,23 @@ def user_create(request):
         password = request.POST['password']
         first_name = request.POST.get('first_name', '')
         last_name = request.POST.get('last_name', '')
+        role_id = request.POST.get('role', '')
         
         user = User.objects.create_user(username=username, email=email, password=password,
                                        first_name=first_name, last_name=last_name)
+        
+        if role_id:
+            try:
+                role = Role.objects.get(id=role_id)
+                UserRole.objects.create(user=user, role=role)
+            except Role.DoesNotExist:
+                pass
+                
         messages.success(request, 'User created successfully')
         return redirect('users_list')
     
-    return render(request, 'users/create.html')
+    roles = Role.objects.all()
+    return render(request, 'users/create.html', {'roles': roles})
 
 @login_required
 def user_edit(request, user_id):
@@ -304,6 +358,9 @@ def attendance_list(request):
     
     attendances = Attendance.objects.filter(date=date_filter).select_related('employee')
     
+    if hasattr(request.user, 'user_role') and request.user.user_role.role and request.user.user_role.role.name.lower() == 'employee':
+        attendances = attendances.filter(employee__email=request.user.email)
+    
     if search:
         attendances = attendances.filter(
             Q(employee__employee_id__icontains=search) |
@@ -363,6 +420,9 @@ def reports(request):
         date__year=year
     ).select_related('employee')
     
+    if hasattr(request.user, 'user_role') and request.user.user_role.role and request.user.user_role.role.name.lower() == 'employee':
+        attendances = attendances.filter(employee__email=request.user.email)
+    
     return render(request, 'reports/index.html', {
         'attendances': attendances,
         'month': month,
@@ -392,3 +452,52 @@ def attendance_delete(request, attendance_id):
         attendance.delete()
         messages.success(request, 'Attendance record deleted successfully')
     return redirect('attendance_list')
+
+@login_required
+def department_attendance_txt(request):
+    import io
+    from django.http import HttpResponse
+    
+    date_filter = request.GET.get('date', timezone.now().date())
+    
+    attendances = Attendance.objects.filter(date=date_filter).select_related('employee')
+    
+    if hasattr(request.user, 'user_role') and request.user.user_role.role and request.user.user_role.role.name.lower() == 'employee':
+        attendances = attendances.filter(employee__email=request.user.email)
+        
+    # Group by department
+    dept_data = {}
+    for att in attendances:
+        dept = att.employee.department
+        if dept not in dept_data:
+            dept_data[dept] = []
+        dept_data[dept].append(att)
+        
+    # Generate text content
+    content = f"Department-wise Attendance Report - {date_filter}\n"
+    content += "=" * 50 + "\n\n"
+    
+    for dept, att_list in dept_data.items():
+        content += f"Department: {dept}\n"
+        content += "-" * 30 + "\n"
+        
+        present = sum(1 for a in att_list if a.status == 'present')
+        absent = sum(1 for a in att_list if a.status == 'absent')
+        leave = sum(1 for a in att_list if a.status == 'leave')
+        late = sum(1 for a in att_list if a.status == 'late')
+        
+        content += f"Total: {len(att_list)} | Present: {present} | Absent: {absent} | Leave: {leave} | Late: {late}\n\n"
+        
+        content += f"{'Emp ID':<10} | {'Name':<25} | {'Status':<10} | {'Check In':<10}\n"
+        content += "-" * 60 + "\n"
+        
+        for att in att_list:
+            name = f"{att.employee.first_name} {att.employee.last_name}"
+            check_in = att.check_in.strftime('%H:%M') if att.check_in else 'N/A'
+            content += f"{att.employee.employee_id:<10} | {name:<25} | {att.get_status_display():<10} | {check_in:<10}\n"
+            
+        content += "\n\n"
+        
+    response = HttpResponse(content, content_type='text/plain')
+    response['Content-Disposition'] = f'attachment; filename="attendance_{date_filter}.txt"'
+    return response

@@ -88,6 +88,13 @@
         </div>
     </div>
 
+    <div class="chart-container full-width" id="deptWeeklyChartContainer">
+        <div class="chart-card">
+            <h3><i class="fas fa-sitemap"></i> Department-wise Weekly Trend</h3>
+            <canvas id="deptWeeklyTrendChart"></canvas>
+        </div>
+    </div>
+
     <div class="chart-container">
         <div class="chart-card">
             <h3><i class="fas fa-chart-bar"></i> Department-wise Attendance</h3>
@@ -230,6 +237,31 @@
                 },
                 options: { ...chartOptions, indexAxis: 'y' }
             });
+
+            // 4.b Department Weekly Trend Chart
+            if (data.dept_weekly_data && data.dept_weekly_data.length > 0) {
+                const bgColors = [colors.primary, colors.success, colors.warning, colors.danger, colors.info, colors.purple];
+
+                new Chart(document.getElementById('deptWeeklyTrendChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.weekly_data.map(d => {
+                            const date = new Date(d.date);
+                            return date.toLocaleDateString('en-US', { weekday: 'short' });
+                        }),
+                        datasets: data.dept_weekly_data.map((dept, index) => ({
+                            label: dept.department + ' (Present)',
+                            data: dept.data,
+                            borderColor: bgColors[index % bgColors.length],
+                            tension: 0.4,
+                            fill: false
+                        }))
+                    },
+                    options: chartOptions
+                });
+            } else {
+                document.getElementById('deptWeeklyChartContainer').style.display = 'none';
+            }
 
             // 5. Status Doughnut Chart
             new Chart(document.getElementById('statusDoughnutChart'), {

@@ -122,10 +122,14 @@ class AttendanceViewSet(viewsets.ModelViewSet):
         month = self.request.query_params.get('month', None)
         year = self.request.query_params.get('year', None)
         
+        is_employee = hasattr(self.request.user, 'user_role') and self.request.user.user_role.role and self.request.user.user_role.role.name.lower() == 'employee'
+        if is_employee:
+            queryset = queryset.filter(employee__email=self.request.user.email)
+        
         if date:
             queryset = queryset.filter(date=date)
         
-        if employee_id:
+        if employee_id and not is_employee:
             queryset = queryset.filter(employee__employee_id=employee_id)
         
         if status_filter:
@@ -168,16 +172,46 @@ def dashboard_stats(request):
     from datetime import timedelta
     today = timezone.now().date()
     
-    total_employees = Employee.objects.filter(is_active=True).count()
-    present_today = Attendance.objects.filter(date=today, status='present').count()
-    absent_today = Attendance.objects.filter(date=today, status='absent').count()
-    leave_today = Attendance.objects.filter(date=today, status='leave').count()
-    late_today = Attendance.objects.filter(date=today, status='late').count()
+    # Check if user is employee
+    is_employee = hasattr(request.user, 'user_role') and request.user.user_role.role and request.user.user_role.role.name.lower() == 'employee'
     
-    # Weekly data (last 7 days)
-    weekly_data = []
-    for i in range(6, -1, -1):
-        date = today - timedelta(days=i)
+    if is_employee:
+        total_employees = 1
+        present_today = Attendance.objects.filter(date=today, status='present', employee__email=request.user.email).count()
+        absent_today = Attendance.objects.filter(date=today, status='absent', employee__email=request.user.email).count()
+        leave_today = Attendance.objects.filter(date=today, status='leave', employee__email=request.user.email).count()
+        late_today = Attendance.objects.filter(date=today, status='late', employee__email=request.user.email).count()
+        
+        weekly_data = []
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            day_data = {
+                'date': date.strftime('%Y-%m-%d'),
+                'present': Attendance.objects.filter(date=date, status='present', employee__email=request.user.email).count(),
+                'absent': Attendance.objects.filter(date=date, status='absent', employee__email=request.user.email).count(),
+                'leave': Attendance.objects.filter(date=date, status='leave', employee__email=request.user.email).count(),
+                'late': Attendance.objects.filter(date=date, status='late', employee__email=request.user.email).count(),
+            }
+            weekly_data.append(day_data)
+        
+        employee = Employee.objects.filter(email=request.user.email).first()
+        dept_attendance = []
+        if employee:
+            dept_attendance = [{
+                'department': employee.department,
+                'present': present_today
+            }]
+    else:
+        total_employees = Employee.objects.filter(is_active=True).count()
+        present_today = Attendance.objects.filter(date=today, status='present').count()
+        absent_today = Attendance.objects.filter(date=today, status='absent').count()
+        leave_today = Attendance.objects.filter(date=today, status='leave').count()
+        late_today = Attendance.objects.filter(date=today, status='late').count()
+        
+        # Weekly data (last 7 days)
+        weekly_data = []
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
         day_data = {
             'date': date.strftime('%Y-%m-%d'),
             'present': Attendance.objects.filter(date=date, status='present').count(),
@@ -187,21 +221,39 @@ def dashboard_stats(request):
         }
         weekly_data.append(day_data)
     
-    # Department-wise attendance for today
-    departments = Employee.objects.values('department').distinct()
-    dept_attendance = []
-    for dept in departments:
-        dept_name = dept['department']
-        present_count = Attendance.objects.filter(
-            date=today,
-            status='present',
-            employee__department=dept_name
-        ).count()
-        dept_attendance.append({
-            'department': dept_name,
-            'present': present_count
-        })
+    if not is_employee:
+        dept_attendance = []
+        # Department-wise attendance for today
+        departments = Employee.objects.values('department').distinct()
+        for dept in departments:
+            dept_name = dept['department']
+            present_count = Attendance.objects.filter(
+                date=today,
+                status='present',
+                employee__department=dept_name
+            ).count()
+            dept_attendance.append({
+                'department': dept_name,
+                'present': present_count
+            })
     
+    # Department weekly attendance (for new chart)
+    dept_weekly_data = []
+    if not is_employee:
+        departments_list = Employee.objects.values_list('department', flat=True).distinct()
+        for dept_name in departments_list:
+            
+            dept_week = {'department': dept_name, 'data': []}
+            for i in range(6, -1, -1):
+                d = today - timedelta(days=i)
+                dept_present = Attendance.objects.filter(
+                    date=d,
+                    status='present',
+                    employee__department=dept_name
+                ).count()
+                dept_week['data'].append(dept_present)
+            dept_weekly_data.append(dept_week)
+            
     data = {
         'total_employees': total_employees,
         'present_today': present_today,
@@ -211,10 +263,11 @@ def dashboard_stats(request):
         'date': today,
         'weekly_data': weekly_data,
         'dept_attendance': dept_attendance,
+        'dept_weekly_data': dept_weekly_data,
     }
     
-    serializer = DashboardStatsSerializer(data)
-    return Response(serializer.data)
+    # We're bypassing the serializer to return the extra dynamic field easily
+    return Response(data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -231,7 +284,11 @@ def attendance_report(request):
         date__year=year
     ).select_related('employee')
     
-    if employee_id:
+    # Restrict to own data if user is an employee
+    is_employee = hasattr(request.user, 'user_role') and request.user.user_role.role and request.user.user_role.role.name.lower() == 'employee'
+    if is_employee:
+        queryset = queryset.filter(employee__email=request.user.email)
+    elif employee_id:
         queryset = queryset.filter(employee__employee_id=employee_id)
     
     # Group by employee

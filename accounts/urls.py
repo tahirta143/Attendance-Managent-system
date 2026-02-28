@@ -37,6 +37,7 @@ urlpatterns = [
     path('attendance/mark/', views.mark_attendance, name='mark_attendance'),
     path('attendance/edit/<int:attendance_id>/', views.attendance_edit, name='attendance_edit'),
     path('attendance/delete/<int:attendance_id>/', views.attendance_delete, name='attendance_delete'),
+    path('attendance/txt/', views.department_attendance_txt, name='department_attendance_txt'),
     
     # Reports
     path('reports/', views.reports, name='reports'),
